@@ -85,21 +85,34 @@ def root():
 def swu_cards():
     Set = request.args.get("Set")
     Number = request.args.get("Number")
-    if not Set or not Number:
-        return jsonify({"error": "Informe Set e Number"}), 400
 
-    url = f"https://api.swu-db.com/cards/{Set}/{Number}"
+    # construir URL dinâmica
+    if Set and Number:
+        url = f"https://api.swu-db.com/cards/{Set}/{Number}"
+    elif Set and not Number:
+        url = f"https://api.swu-db.com/cards/{Set}"
+    else:
+        url = "https://api.swu-db.com/cards"
+
     try:
         r = requests.get(url, params={"format": "json", "pretty": "true"}, timeout=10)
         r.raise_for_status()
-        card = r.json()
+        cards = r.json()
     except requests.HTTPError as e:
         return jsonify({"error": "Falha ao consultar SWU", "details": str(e)}), 502
     except Exception as e:
         return jsonify({"error": "Erro desconhecido", "details": str(e)}), 500
 
-    layout_card = forced_layout_flat_fixed(swu_schema, card)
-    return jsonify(layout_card)
+    # se retornar um dict único, transformar em lista
+    if isinstance(cards, dict):
+        cards = [cards]
+
+    page_data = [forced_layout_flat_fixed(swu_schema, c) for c in cards]
+
+    return jsonify({
+        "total": len(cards),
+        "data": page_data
+    })
 
 @app.after_request
 def add_cache_headers(resp):
