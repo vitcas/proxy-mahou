@@ -1,12 +1,18 @@
-# api_swu.py
-import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import requests
+import math
+from pymongo import MongoClient
 
 app = Flask(__name__)
 CORS(app)
 
-# --- Schema SWU ---
+#client = MongoClient("mongodb://localhost:27017/")
+client = MongoClient("mongodb+srv://tcguser:A539ouca6IWf671S@cluster0.gb3pk.mongodb.net/?retryWrites=true&w=majority")
+db = client["tcg"]
+collecfab = db["fab_cards"]
+collecyugi = db["yugioh_cards"]
+
 swu_schema = {
     "Set": {"type": "string", "target": "set.set_code"},
     "Number": {"type": "string", "target": "number"},
@@ -64,17 +70,67 @@ def forced_layout_flat_fixed(mapa: dict, card: dict) -> dict:
         out["code"] = out["id"]
     return out
 
-# ---------------- ROTAS ----------------
+def format_yugioh_card(card):
+    formatted = {
+        "_id": str(card.get("_id")),  # Mongo ID
+        "id": str(card.get("id")),    # ID da carta (Yugioh)
+        "code": str(card.get("id")),
+        "name": card.get("name"),
+        "type": card.get("type"),
+        "attribute": card.get("attribute"),
+        "race": card.get("race"),
+        "level": card.get("level"),
+        "atk": card.get("atk"),
+        "def": card.get("def"),
+        "archetype": card.get("archetype"),
+        "effect": card.get("desc"),
+        "images": {
+            "small": None,
+            "large": None
+        },
+        "variants": []
+    }
+
+    # imagens
+    images = card.get("card_images", [])
+    if images and isinstance(images, list):
+        img = images[0]  # primeira imagem
+        formatted["images"]["small"] = img.get("image_url_small")
+        formatted["images"]["large"] = img.get("image_url")
+
+    # variantes baseadas em card_sets
+    card_sets = card.get("card_sets", [])
+    for s in card_sets:
+        formatted["variants"].append({
+            "set_code": s.get("set_code"),
+            "set_rarity": s.get("set_rarity"),
+            "set_price": s.get("set_price"),
+            "tcgplayerId": s.get("tcgplayerId"),
+            "juSTname": s.get("juSTname"),
+            "condition": s.get("condition"),
+            "language": s.get("language"),
+            "lowPrice": s.get("lowPrice"),
+            "midPrice": s.get("midPrice"),
+            "marketPrice": s.get("marketPrice"),
+            "highPrice": s.get("highPrice")
+        })
+
+    return formatted
+
 @app.route("/")
 def root():
     base = request.host_url.rstrip("/")
     return jsonify([
-        {"name": "SWU - Buscar carta única ou set", "url": f"{base}/swu/cards?Set=SOR&Number=010"},
-        {"name": "SWU - Listar cartas de um set", "url": f"{base}/swu/cards?Set=SOR"}
+        {"name": "SWU - Buscar carta única ou set", "url": f"{base}/swu/cards?set=sor&number=010"},
+        {"name": "SWU - Listar cartas de um set", 
+        "sets": ["sor","shd","twi","jtl","lof","ibh","sec"],
+        "url": f"{base}/swu/cards?set=sor"},
+        {"name": "FAB - Listar todas as cartas", "url": f"{base}/fab/cards"},
+        {"name": "YUG - Buscar cartas por nome", "url": f"{base}/yugi/cards?name=blue"},
     ])
 
 @app.route("/swu/cards")
-def swu_cards():
+def get_swu_cards():
     # pega parâmetros da query em minúsculo
     Set = request.args.get("set")  # note: 'set' minúsculo
     Number = request.args.get("number")  # 'number' minúsculo
@@ -111,12 +167,91 @@ def swu_cards():
         "data": page_data
     })
 
+@app.route("/fab/cards")
+def get_fab_cards():
+    query = {}
+    if request.args.get("name"):
+        query["name"] = {"$regex": request.args["name"], "$options": "i"}
+    if request.args.get("set_id"):
+        query["printings.set_id"] = request.args["set_id"]
+
+    limit = min(int(request.args.get("limit", 25)), 100)
+    page = max(int(request.args.get("page", 1)), 1)
+
+    total = collecfab.count_documents(query)
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+
+    cursor = collecfab.find(query).skip((page - 1) * limit).limit(limit)
+    data = []
+    for doc in cursor:
+        doc["_id"] = str(doc["_id"])
+        data.append(doc)
+
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "totalPages": total_pages,
+        "data": data
+    })
+
+@app.route("/yugi/cards")
+def get_cards():
+    query = {}
+
+    # filtros simples
+    if request.args.get("id"):
+        query["id"] = int(request.args["id"])
+    if request.args.get("konami_id"):
+        query["konami_id"] = int(request.args["konami_id"])
+    if request.args.get("md_rarity"):
+        query["md_rarity"] = request.args["md_rarity"]
+    if request.args.get("name"):
+        query["name"] = {"$regex": request.args["name"], "$options": "i"}
+
+    # filtros dentro de card_sets[]
+    if request.args.get("set_code"):
+        query["card_sets.set_code"] = request.args["set_code"]
+    if request.args.get("rarity"):
+        query["card_sets.set_rarity"] = request.args["rarity"]
+
+    # paginação
+    try:
+        limit = min(int(request.args.get("limit", 25)), 100)
+    except ValueError:
+        limit = 25
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except ValueError:
+        page = 1
+
+    total = collecyugi.count_documents(query)
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+
+    # query no Mongo
+    cursor = (
+        collecyugi.find(query)
+        .skip((page - 1) * limit)
+        .limit(limit)
+    )
+
+    # aplicar formatação One Piece style
+    data = []
+    for doc in cursor:
+        data.append(format_yugioh_card(doc))
+
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "totalPages": total_pages,
+        "data": data
+    })
 
 @app.after_request
 def add_cache_headers(resp):
     resp.headers["Cache-Control"] = "s-maxage=300, stale-while-revalidate=600"
     return resp
 
-# ---------------- MAIN ----------------
 if __name__ == "__main__":
     app.run(port=5003, debug=True)
