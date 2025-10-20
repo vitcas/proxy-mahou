@@ -1,5 +1,6 @@
 Flask==3.0.3
 Flask-Cors==4.0.1
 requests
-pymongo==4.7.1
-dnspython==2.6.1
+pymongo
+dnspython
+gunicorn

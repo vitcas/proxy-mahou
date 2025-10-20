@@ -10,8 +10,8 @@ CORS(app)
 #client = MongoClient("mongodb://localhost:27017/")
 client = MongoClient("mongodb+srv://tcguser:A539ouca6IWf671S@cluster0.gb3pk.mongodb.net/?retryWrites=true&w=majority")
 db = client["tcg"]
-fab_collection = db["fab_cards"]
-yugi_collection = db["yugioh_cards"]
+collecfab = db["fab_cards"]
+collecyugi = db["yugioh_cards"]
 
 swu_schema = {
     "Set": {"type": "string", "target": "set.set_code"},
@@ -178,10 +178,10 @@ def get_fab_cards():
     limit = min(int(request.args.get("limit", 25)), 100)
     page = max(int(request.args.get("page", 1)), 1)
 
-    total = fab_collection.count_documents(query)
+    total = collecfab.count_documents(query)
     total_pages = math.ceil(total / limit) if limit > 0 else 1
 
-    cursor = fab_collection.find(query).skip((page - 1) * limit).limit(limit)
+    cursor = collecfab.find(query).skip((page - 1) * limit).limit(limit)
     data = []
     for doc in cursor:
         doc["_id"] = str(doc["_id"])
@@ -196,7 +196,7 @@ def get_fab_cards():
     })
 
 @app.route("/yugi/cards")
-def get_yugi_cards():
+def get_cards():
     query = {}
 
     # filtros simples
@@ -225,12 +225,12 @@ def get_yugi_cards():
     except ValueError:
         page = 1
 
-    total = yugi_collection.count_documents(query)
+    total = collecyugi.count_documents(query)
     total_pages = math.ceil(total / limit) if limit > 0 else 1
 
     # query no Mongo
     cursor = (
-        yugi_collection.find(query)
+        collecyugi.find(query)
         .skip((page - 1) * limit)
         .limit(limit)
     )
@@ -253,5 +253,5 @@ def add_cache_headers(resp):
     resp.headers["Cache-Control"] = "s-maxage=300, stale-while-revalidate=600"
     return resp
 
-#if __name__ == "__main__":
-#    app.run(port=5003, debug=True)
+if __name__ == "__main__":
+    app.run(port=5003, debug=True)
