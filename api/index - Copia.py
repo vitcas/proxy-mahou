@@ -10,8 +10,8 @@ CORS(app)
 #client = MongoClient("mongodb://localhost:27017/")
 client = MongoClient("mongodb+srv://tcguser:A539ouca6IWf671S@cluster0.gb3pk.mongodb.net/?retryWrites=true&w=majority")
 db = client["tcg"]
-collecfab = db["fab_cards"]
-collecyugi = db["yugioh_cards"]
+fab_collection = db["fab_cards"]
+yugi_collection = db["yugioh_cards"]
 
 swu_schema = {
     "Set": {"type": "string", "target": "set.set_code"},
@@ -123,7 +123,15 @@ def root():
     return jsonify([
         {"name": "SWU - Buscar carta única ou set", "url": f"{base}/swu/cards?set=sor&number=010"},
         {"name": "SWU - Listar cartas de um set", 
-        "sets": ["sor","shd","twi","jtl","lof","ibh","sec"],
+        "sets": [
+        "Spark of Rebellion - sor",
+        "Shadows of Galaxy - shd",
+        "Twilight of the Republic - twi",
+        "Jump to Lightspeed - jtl",
+        "Legends of the Force - lof",
+        "Intro Battle: Hoth - ibh",
+        "Secrets of Power - sec"
+        ],
         "url": f"{base}/swu/cards?set=sor"},
         {"name": "FAB - Listar todas as cartas", "url": f"{base}/fab/cards"},
         {"name": "YUG - Buscar cartas por nome", "url": f"{base}/yugi/cards?name=blue"},
@@ -178,10 +186,10 @@ def get_fab_cards():
     limit = min(int(request.args.get("limit", 25)), 100)
     page = max(int(request.args.get("page", 1)), 1)
 
-    total = collecfab.count_documents(query)
+    total = fab_collection.count_documents(query)
     total_pages = math.ceil(total / limit) if limit > 0 else 1
 
-    cursor = collecfab.find(query).skip((page - 1) * limit).limit(limit)
+    cursor = fab_collection.find(query).skip((page - 1) * limit).limit(limit)
     data = []
     for doc in cursor:
         doc["_id"] = str(doc["_id"])
@@ -196,9 +204,8 @@ def get_fab_cards():
     })
 
 @app.route("/yugi/cards")
-def get_cards():
+def get_yugi_cards():
     query = {}
-
     # filtros simples
     if request.args.get("id"):
         query["id"] = int(request.args["id"])
@@ -208,13 +215,11 @@ def get_cards():
         query["md_rarity"] = request.args["md_rarity"]
     if request.args.get("name"):
         query["name"] = {"$regex": request.args["name"], "$options": "i"}
-
     # filtros dentro de card_sets[]
     if request.args.get("set_code"):
         query["card_sets.set_code"] = request.args["set_code"]
     if request.args.get("rarity"):
         query["card_sets.set_rarity"] = request.args["rarity"]
-
     # paginação
     try:
         limit = min(int(request.args.get("limit", 25)), 100)
@@ -224,22 +229,18 @@ def get_cards():
         page = max(int(request.args.get("page", 1)), 1)
     except ValueError:
         page = 1
-
-    total = collecyugi.count_documents(query)
+    total = yugi_collection.count_documents(query)
     total_pages = math.ceil(total / limit) if limit > 0 else 1
-
     # query no Mongo
     cursor = (
-        collecyugi.find(query)
+        yugi_collection.find(query)
         .skip((page - 1) * limit)
         .limit(limit)
     )
-
     # aplicar formatação One Piece style
     data = []
     for doc in cursor:
         data.append(format_yugioh_card(doc))
-
     return jsonify({
         "page": page,
         "limit": limit,

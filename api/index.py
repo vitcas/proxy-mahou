@@ -39,6 +39,35 @@ swu_schema = {
     "FrontArt": {"type": "string", "target": "images.front"}
 }
 
+mtg_schema = {
+    "id": {"type": "string", "target": "id"},
+    "name": {"type": "string", "target": "name"},
+    "manaCost": {"type": "string", "target": "manaCost"},
+    "cmc": {"type": "float", "target": "cmc"},
+    "colors": {"type": "list[string]", "target": "colors"},
+    "colorIdentity": {"type": "list[string]", "target": "colorIdentity"},
+    "type": {"type": "string", "target": "type"},
+    "types": {"type": "list[string]", "target": "types"},
+    "subtypes": {"type": "list[string]", "target": "subtypes"},
+    "rarity": {"type": "string", "target": "rarity"},
+    "set": {"type": "string", "target": "set.set_code"},
+    "setName": {"type": "string", "target": "set.name"},
+    "text": {"type": "string", "target": "effect"},
+    "artist": {"type": "string", "target": "artist"},
+    "number": {"type": "string", "target": "number"},
+    "power": {"type": "string|int", "target": "power"},
+    "toughness": {"type": "string|int", "target": "toughness"},
+    "layout": {"type": "string", "target": "layout"},
+    "multiverseid": {"type": "string|int", "target": "multiverseid"}, 
+    "imageUrl": {"type": "string", "target": "images.small"},
+    "variations": {"type": "list[string]", "target": "variations"},  # TODO: detalhar como armazenar variantes
+    "foreignNames": {"type": "list[dict]", "target": "foreignNames"},  # TODO: decidir se vira variants por idioma
+    "printings": {"type": "list[string]", "target": "printings"},  # TODO: decidir se vira array de sets
+    "originalText": {"type": "string", "target": "originalText"},
+    "originalType": {"type": "string", "target": "originalType"},
+    "legalities": {"type": "list[dict]", "target": "legalities"},
+}
+
 def forced_layout_flat_fixed(mapa: dict, card: dict) -> dict:
     out = {}
     images, set_obj, variants = {}, {}, {}
@@ -64,7 +93,7 @@ def forced_layout_flat_fixed(mapa: dict, card: dict) -> dict:
         out["set"] = set_obj
     if variants:
         out["variants"] = [variants]
-    # gerar id/code
+    # gerar id/code -- so precisa no star wars
     if "set" in out and "set_code" in out["set"] and "number" in out:
         out["id"] = f"{out['set']['set_code']}-{out['number']}"
         out["code"] = out["id"]
@@ -122,10 +151,9 @@ def root():
     base = request.host_url.rstrip("/")
     return jsonify([
         {"name": "SWU - Buscar carta única ou set", "url": f"{base}/swu/cards?set=sor&number=010"},
-        {"name": "SWU - Listar cartas de um set", 
-        "sets": ["sor","shd","twi","jtl","lof","ibh","sec"],
-        "url": f"{base}/swu/cards?set=sor"},
+        {"name": "SWU - Listar cartas de um set", "url": f"{base}/swu/cards?set=sor"},
         {"name": "FAB - Listar todas as cartas", "url": f"{base}/fab/cards"},
+        {"name": "MTG - Listar todas as cartas", "url": f"{base}/mtg/cards"},
         {"name": "YUG - Buscar cartas por nome", "url": f"{base}/yugi/cards?name=blue"},
     ])
 
@@ -198,7 +226,6 @@ def get_fab_cards():
 @app.route("/yugi/cards")
 def get_yugi_cards():
     query = {}
-
     # filtros simples
     if request.args.get("id"):
         query["id"] = int(request.args["id"])
@@ -208,12 +235,55 @@ def get_yugi_cards():
         query["md_rarity"] = request.args["md_rarity"]
     if request.args.get("name"):
         query["name"] = {"$regex": request.args["name"], "$options": "i"}
-
     # filtros dentro de card_sets[]
     if request.args.get("set_code"):
         query["card_sets.set_code"] = request.args["set_code"]
     if request.args.get("rarity"):
         query["card_sets.set_rarity"] = request.args["rarity"]
+    # paginação
+    try:
+        limit = min(int(request.args.get("limit", 25)), 100)
+    except ValueError:
+        limit = 25
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except ValueError:
+        page = 1
+    total = yugi_collection.count_documents(query)
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+    # query no Mongo
+    cursor = (
+        yugi_collection.find(query)
+        .skip((page - 1) * limit)
+        .limit(limit)
+    )
+    # aplicar formatação One Piece style
+    data = []
+    for doc in cursor:
+        data.append(format_yugioh_card(doc))
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "totalPages": total_pages,
+        "data": data
+    })
+
+@app.route("/mtg/cards")
+def get_mtg_cards():
+    base_url = "https://api.magicthegathering.io/v1/cards"
+
+    # parâmetros da query (todos suportados pela API)
+    params = {}
+    allowed_filters = [
+        "name", "set", "colors", "colorIdentity", "type", "supertypes",
+        "types", "subtypes", "rarity", "layout", "cmc", "loyalty",
+        "gameFormat", "legality", "contains", "id", "language", "orderBy", "random"
+    ]
+    for f in allowed_filters:
+        val = request.args.get(f)
+        if val:
+            params[f] = val
 
     # paginação
     try:
@@ -225,20 +295,23 @@ def get_yugi_cards():
     except ValueError:
         page = 1
 
-    total = yugi_collection.count_documents(query)
+    params["pageSize"] = limit
+    params["page"] = page
+
+    try:
+        r = requests.get(base_url, params=params, timeout=10)
+        r.raise_for_status()
+        resp_json = r.json()
+        cards = resp_json.get("cards", [])
+        total = int(r.headers.get("Total-Count", len(cards)))
+    except requests.HTTPError as e:
+        return jsonify({"error": "Falha ao consultar MTG", "details": str(e)}), 502
+    except Exception as e:
+        return jsonify({"error": "Erro desconhecido", "details": str(e)}), 500
+
+    # aplicar schema
+    data = [forced_layout_flat_fixed(mtg_schema, c) for c in cards]
     total_pages = math.ceil(total / limit) if limit > 0 else 1
-
-    # query no Mongo
-    cursor = (
-        yugi_collection.find(query)
-        .skip((page - 1) * limit)
-        .limit(limit)
-    )
-
-    # aplicar formatação One Piece style
-    data = []
-    for doc in cursor:
-        data.append(format_yugioh_card(doc))
 
     return jsonify({
         "page": page,
@@ -253,5 +326,5 @@ def add_cache_headers(resp):
     resp.headers["Cache-Control"] = "s-maxage=300, stale-while-revalidate=600"
     return resp
 
-#if __name__ == "__main__":
-#    app.run(port=5003, debug=True)
+if __name__ == "__main__":
+    app.run(port=5003, debug=True)
