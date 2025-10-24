@@ -94,9 +94,10 @@ def forced_layout_flat_fixed(mapa: dict, card: dict) -> dict:
     if variants:
         out["variants"] = [variants]
     # gerar id/code -- so precisa no star wars
-    if "set" in out and "set_code" in out["set"] and "number" in out:
-        out["id"] = f"{out['set']['set_code']}-{out['number']}"
-        out["code"] = out["id"]
+    if "doubleSided" in out:
+        if "set" in out and "set_code" in out["set"] and "number" in out:
+            out["id"] = f"{out['set']['set_code']}-{out['number']}"
+            out["code"] = out["id"]
     return out
 
 def format_yugioh_card(card):
@@ -297,6 +298,7 @@ def get_mtg_cards():
 
     params["pageSize"] = limit
     params["page"] = page
+    params["contains"] = "imageUrl"
 
     try:
         r = requests.get(base_url, params=params, timeout=10)
