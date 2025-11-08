@@ -13,6 +13,32 @@ db = client["tcg"]
 fab_collection = db["fab_cards"]
 yugi_collection = db["yugioh_cards"]
 
+fab_schema = {
+    "unique_id": {"type": "string", "target": "id"},
+    "name": {"type": "string", "target": "name"},
+    "color": {"type": "string", "target": "color"},
+    "cost": {"type": "string|int", "target": "cost"},
+    "pitch": {"type": "string|int", "target": "pitch"},
+    "power": {"type": "string|int", "target": "power"},
+    "defense": {"type": "string|int", "target": "defense"},
+    "health": {"type": "string|int", "target": "hp"},
+    "intelligence": {"type": "string|int", "target": "intelligence"},
+    "type_text": {"type": "string", "target": "type"},
+    "types": {"type": "list[string]", "target": "types"},
+    "traits": {"type": "list[string]", "target": "traits"},
+    "card_keywords": {"type": "list[string]", "target": "keywords"},
+    "functional_text": {"type": "string", "target": "effect"},
+    "functional_text_plain": {"type": "string", "target": "effect_plain"},
+    "played_horizontally": {"type": "bool", "target": "playedHorizontally"},
+    # legalidades e banimentos
+    "blitz_legal": {"type": "bool", "target": "legalities.blitz"},
+    "cc_legal": {"type": "bool", "target": "legalities.classicConstructed"},
+    "commoner_legal": {"type": "bool", "target": "legalities.commoner"},
+    "upf_banned": {"type": "bool", "target": "legalities.upfBanned"},
+    # printing principal
+    "printings": {"type": "list[dict]", "target": "variants"}
+}
+
 swu_schema = {
     "Set": {"type": "string", "target": "set.set_code"},
     "Number": {"type": "string", "target": "number"},
@@ -147,6 +173,60 @@ def format_yugioh_card(card):
 
     return formatted
 
+def format_fab_card(card):
+    formatted = {
+        "_id": str(card.get("_id")),
+        "id": card.get("unique_id"),
+        "code": card.get("unique_id"),
+        "name": card.get("name"),
+        "color": card.get("color"),
+        "type": card.get("type_text"),
+        "types": card.get("types", []),
+        "traits": card.get("traits", []),
+        "keywords": card.get("card_keywords", []),
+        "cost": card.get("cost"),
+        "pitch": card.get("pitch"),
+        "power": card.get("power"),
+        "defense": card.get("defense"),
+        "hp": card.get("health"),
+        "intelligence": card.get("intelligence"),
+        "effect": card.get("functional_text"),
+        "effect_plain": card.get("functional_text_plain"),
+        "playedHorizontally": card.get("played_horizontally", False),
+        "legalities": {
+            "blitz": card.get("blitz_legal", False),
+            "classicConstructed": card.get("cc_legal", False),
+            "commoner": card.get("commoner_legal", False),
+            "upfBanned": card.get("upf_banned", False)
+        },
+        "variants": []
+    }
+
+    printings = card.get("printings", [])
+    for p in printings:
+        formatted["variants"].append({
+            "set_code": p.get("set_id"),
+            "rarity": p.get("rarity"),
+            "foiling": p.get("foiling"),
+            "edition": p.get("edition"),
+            "artist": p.get("artists", [None])[0] if p.get("artists") else None,
+            "image": p.get("image_url"),
+            "tcgplayer_id": p.get("tcgplayer_product_id"),
+            "tcgplayer_url": p.get("tcgplayer_url"),
+            "set_printing_id": p.get("set_printing_unique_id"),
+            "unique_id": p.get("unique_id"),
+        })
+
+    if formatted["variants"]:
+        formatted["images"] = {
+            "small": formatted["variants"][0]["image"],
+            "large": formatted["variants"][0]["image"]
+        }
+    else:
+        formatted["images"] = {"small": None, "large": None}
+
+    return formatted
+
 @app.route("/")
 def root():
     base = request.host_url.rstrip("/")
@@ -211,10 +291,7 @@ def get_fab_cards():
     total_pages = math.ceil(total / limit) if limit > 0 else 1
 
     cursor = fab_collection.find(query).skip((page - 1) * limit).limit(limit)
-    data = []
-    for doc in cursor:
-        doc["_id"] = str(doc["_id"])
-        data.append(doc)
+    data = [format_fab_card(doc) for doc in cursor]
 
     return jsonify({
         "page": page,
@@ -258,7 +335,6 @@ def get_yugi_cards():
         .skip((page - 1) * limit)
         .limit(limit)
     )
-    # aplicar formatação One Piece style
     data = []
     for doc in cursor:
         data.append(format_yugioh_card(doc))
