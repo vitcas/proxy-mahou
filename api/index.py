@@ -1,298 +1,41 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import requests
 import math
-from pymongo import MongoClient
+from api.utils.mango2 import contar_docs, buscar_docs, random_doc
 
 app = Flask(__name__)
 CORS(app)
 
-#client = MongoClient("mongodb://localhost:27017/")
-client = MongoClient("mongodb+srv://tcguser:A539ouca6IWf671S@cluster0.gb3pk.mongodb.net/?retryWrites=true&w=majority")
-db = client["tcg"]
-fab_collection = db["fab_cards"]
-yugi_collection = db["yugioh_cards"]
-
-fab_schema = {
-    "unique_id": {"type": "string", "target": "id"},
-    "name": {"type": "string", "target": "name"},
-    "color": {"type": "string", "target": "color"},
-    "cost": {"type": "string|int", "target": "cost"},
-    "pitch": {"type": "string|int", "target": "pitch"},
-    "power": {"type": "string|int", "target": "power"},
-    "defense": {"type": "string|int", "target": "defense"},
-    "health": {"type": "string|int", "target": "hp"},
-    "intelligence": {"type": "string|int", "target": "intelligence"},
-    "type_text": {"type": "string", "target": "type"},
-    "types": {"type": "list[string]", "target": "types"},
-    "traits": {"type": "list[string]", "target": "traits"},
-    "card_keywords": {"type": "list[string]", "target": "keywords"},
-    "functional_text": {"type": "string", "target": "effect"},
-    "functional_text_plain": {"type": "string", "target": "effect_plain"},
-    "played_horizontally": {"type": "bool", "target": "playedHorizontally"},
-    # legalidades e banimentos
-    "blitz_legal": {"type": "bool", "target": "legalities.blitz"},
-    "cc_legal": {"type": "bool", "target": "legalities.classicConstructed"},
-    "commoner_legal": {"type": "bool", "target": "legalities.commoner"},
-    "upf_banned": {"type": "bool", "target": "legalities.upfBanned"},
-    # printing principal
-    "printings": {"type": "list[dict]", "target": "variants"}
-}
-
-swu_schema = {
-    "Set": {"type": "string", "target": "set.set_code"},
-    "Number": {"type": "string", "target": "number"},
-    "Name": {"type": "string", "target": "name"},
-    "Subtitle": {"type": "string", "target": "subtitle"},
-    "Type": {"type": "string", "target": "type"},
-    "Aspects": {"type": "list[string]", "target": "aspects"},
-    "Traits": {"type": "list[string]", "target": "traits"},
-    "Arenas": {"type": "list[string]", "target": "arenas"},
-    "Cost": {"type": "string|int", "target": "cost"},
-    "Power": {"type": "string|int", "target": "power"},
-    "HP": {"type": "string|int", "target": "hp"},
-    "FrontText": {"type": "string", "target": "frontText"},
-    "EpicAction": {"type": "string", "target": "epicAction"},
-    "DoubleSided": {"type": "bool", "target": "doubleSided"},
-    "BackArt": {"type": "string", "target": "images.back"},
-    "BackText": {"type": "string", "target": "backText"},
-    "Rarity": {"type": "string", "target": "rarity"},
-    "Unique": {"type": "bool", "target": "unique"},
-    "Artist": {"type": "string", "target": "artist"},
-    "VariantType": {"type": "string", "target": "variants.type"},
-    "MarketPrice": {"type": "float|string", "target": "variants.marketPrice"},
-    "LowPrice": {"type": "float|string", "target": "variants.lowPrice"},
-    "FrontArt": {"type": "string", "target": "images.front"}
-}
-
-mtg_schema = {
-    "id": {"type": "string", "target": "id"},
-    "name": {"type": "string", "target": "name"},
-    "manaCost": {"type": "string", "target": "manaCost"},
-    "cmc": {"type": "float", "target": "cmc"},
-    "colors": {"type": "list[string]", "target": "colors"},
-    "colorIdentity": {"type": "list[string]", "target": "colorIdentity"},
-    "type": {"type": "string", "target": "type"},
-    "types": {"type": "list[string]", "target": "types"},
-    "subtypes": {"type": "list[string]", "target": "subtypes"},
-    "rarity": {"type": "string", "target": "rarity"},
-    "set": {"type": "string", "target": "set.set_code"},
-    "setName": {"type": "string", "target": "set.name"},
-    "text": {"type": "string", "target": "effect"},
-    "artist": {"type": "string", "target": "artist"},
-    "number": {"type": "string", "target": "number"},
-    "power": {"type": "string|int", "target": "power"},
-    "toughness": {"type": "string|int", "target": "toughness"},
-    "layout": {"type": "string", "target": "layout"},
-    "multiverseid": {"type": "string|int", "target": "multiverseid"}, 
-    "imageUrl": {"type": "string", "target": "images.small"},
-    "variations": {"type": "list[string]", "target": "variations"},  # TODO: detalhar como armazenar variantes
-    "foreignNames": {"type": "list[dict]", "target": "foreignNames"},  # TODO: decidir se vira variants por idioma
-    "printings": {"type": "list[string]", "target": "printings"},  # TODO: decidir se vira array de sets
-    "originalText": {"type": "string", "target": "originalText"},
-    "originalType": {"type": "string", "target": "originalType"},
-    "legalities": {"type": "list[dict]", "target": "legalities"},
-}
-
-def forced_layout_flat_fixed(mapa: dict, card: dict) -> dict:
-    out = {}
-    images, set_obj, variants = {}, {}, {}
-    for campo, info in mapa.items():
-        target = info.get("target", "")
-        val = card.get(campo)
-        if target.startswith("images.") and val is not None:
-            key = target.split(".", 1)[1]
-            images[key] = val
-        elif target.startswith("set.") and val is not None:
-            set_obj[target.split(".", 1)[1]] = val
-        elif target.startswith("variants.") and val is not None:
-            variants[target.split(".", 1)[1]] = val
-        elif val is not None:
-            out[target] = val
-    # --- ajuste: front → small e large ---
-    if "front" in images:
-        images["small"] = images["front"]
-        images["large"] = images["front"]
-    if images:
-        out["images"] = images
-    if set_obj:
-        out["set"] = set_obj
-    if variants:
-        out["variants"] = [variants]
-    # gerar id/code -- so precisa no star wars
-    if "doubleSided" in out:
-        if "set" in out and "set_code" in out["set"] and "number" in out:
-            out["id"] = f"{out['set']['set_code']}-{out['number']}"
-            out["code"] = out["id"]
-    return out
-
-def format_yugioh_card(card):
-    formatted = {
-        "_id": str(card.get("_id")),  # Mongo ID
-        "id": str(card.get("id")),    # ID da carta (Yugioh)
-        "code": str(card.get("id")),
-        "name": card.get("name"),
-        "type": card.get("type"),
-        "attribute": card.get("attribute"),
-        "race": card.get("race"),
-        "level": card.get("level"),
-        "atk": card.get("atk"),
-        "def": card.get("def"),
-        "archetype": card.get("archetype"),
-        "effect": card.get("desc"),
-        "images": {
-            "small": None,
-            "large": None
-        },
-        "variants": []
-    }
-
-    # imagens
-    images = card.get("card_images", [])
-    if images and isinstance(images, list):
-        img = images[0]  # primeira imagem
-        formatted["images"]["small"] = img.get("image_url_small")
-        formatted["images"]["large"] = img.get("image_url")
-
-    # variantes baseadas em card_sets
-    card_sets = card.get("card_sets", [])
-    for s in card_sets:
-        formatted["variants"].append({
-            "set_code": s.get("set_code"),
-            "set_rarity": s.get("set_rarity"),
-            "set_price": s.get("set_price"),
-            "tcgplayerId": s.get("tcgplayerId"),
-            "juSTname": s.get("juSTname"),
-            "condition": s.get("condition"),
-            "language": s.get("language"),
-            "lowPrice": s.get("lowPrice"),
-            "midPrice": s.get("midPrice"),
-            "marketPrice": s.get("marketPrice"),
-            "highPrice": s.get("highPrice")
-        })
-
-    return formatted
-
-def format_fab_card(card):
-    formatted = {
-        "_id": str(card.get("_id")),
-        "id": card.get("unique_id"),
-        "code": card.get("unique_id"),
-        "name": card.get("name"),
-        "color": card.get("color"),
-        "type": card.get("type_text"),
-        "types": card.get("types", []),
-        "traits": card.get("traits", []),
-        "keywords": card.get("card_keywords", []),
-        "cost": card.get("cost"),
-        "pitch": card.get("pitch"),
-        "power": card.get("power"),
-        "defense": card.get("defense"),
-        "hp": card.get("health"),
-        "intelligence": card.get("intelligence"),
-        "effect": card.get("functional_text"),
-        "effect_plain": card.get("functional_text_plain"),
-        "playedHorizontally": card.get("played_horizontally", False),
-        "legalities": {
-            "blitz": card.get("blitz_legal", False),
-            "classicConstructed": card.get("cc_legal", False),
-            "commoner": card.get("commoner_legal", False),
-            "upfBanned": card.get("upf_banned", False)
-        },
-        "variants": []
-    }
-
-    printings = card.get("printings", [])
-    for p in printings:
-        formatted["variants"].append({
-            "set_code": p.get("set_id"),
-            "rarity": p.get("rarity"),
-            "foiling": p.get("foiling"),
-            "edition": p.get("edition"),
-            "artist": p.get("artists", [None])[0] if p.get("artists") else None,
-            "image": p.get("image_url"),
-            "tcgplayer_id": p.get("tcgplayer_product_id"),
-            "tcgplayer_url": p.get("tcgplayer_url"),
-            "set_printing_id": p.get("set_printing_unique_id"),
-            "unique_id": p.get("unique_id"),
-        })
-
-    if formatted["variants"]:
-        formatted["images"] = {
-            "small": formatted["variants"][0]["image"],
-            "large": formatted["variants"][0]["image"]
-        }
-    else:
-        formatted["images"] = {"small": None, "large": None}
-
-    return formatted
-
 @app.route("/")
 def root():
-    base = request.host_url.rstrip("/")
-    return jsonify([
-        {"name": "SWU - Buscar carta única ou set", "url": f"{base}/swu/cards?set=sor&number=010"},
-        {"name": "SWU - Listar cartas de um set", "url": f"{base}/swu/cards?set=sor"},
-        {"name": "FAB - Listar todas as cartas", "url": f"{base}/fab/cards"},
-        {"name": "MTG - Listar todas as cartas", "url": f"{base}/mtg/cards"},
-        {"name": "YUG - Buscar cartas por nome", "url": f"{base}/yugi/cards?name=blue"},
-    ])
+    return render_template("home.html")
 
-@app.route("/swu/cards")
-def get_swu_cards():
-    # pega parâmetros da query em minúsculo
-    Set = request.args.get("set")  # note: 'set' minúsculo
-    Number = request.args.get("number")  # 'number' minúsculo
-
-    if not Set:
-        return jsonify({"error": "Informe Set"}), 400
-
-    Set = Set.lower()
-    if Number:
-        Number = Number.lower()
-        url = f"https://api.swu-db.com/cards/{Set}/{Number}"
-    else:
-        url = f"https://api.swu-db.com/cards/{Set}"
-
-    try:
-        r = requests.get(url, params={"format": "json", "pretty": "true"}, timeout=10)
-        r.raise_for_status()
-        resp_json = r.json()
-        if isinstance(resp_json, dict) and "data" in resp_json:
-            cards = resp_json["data"]
-        elif isinstance(resp_json, list):
-            cards = resp_json
-        else:
-            cards = [resp_json]
-    except requests.HTTPError as e:
-        return jsonify({"error": "Falha ao consultar SWU", "details": str(e)}), 502
-    except Exception as e:
-        return jsonify({"error": "Erro desconhecido", "details": str(e)}), 500
-
-    page_data = [forced_layout_flat_fixed(swu_schema, c) for c in cards]
-
-    return jsonify({
-        "total": len(cards),
-        "data": page_data
-    })
-
-@app.route("/fab/cards")
-def get_fab_cards():
+# dados do mongo
+@app.route("/sorcery/cards")
+def get_sorcery_cards():
     query = {}
+    # filtros
     if request.args.get("name"):
         query["name"] = {"$regex": request.args["name"], "$options": "i"}
-    if request.args.get("set_id"):
-        query["printings.set_id"] = request.args["set_id"]
-
-    limit = min(int(request.args.get("limit", 25)), 100)
-    page = max(int(request.args.get("page", 1)), 1)
-
-    total = fab_collection.count_documents(query)
+    if request.args.get("type"):
+        query["type"] = {"$regex": request.args["type"], "$options": "i"}
+    if request.args.get("rarity"):
+        query["rarity"] = request.args["rarity"]
+    if request.args.get("set"):
+        query["set.name"] = {"$regex": request.args["set"], "$options": "i"} 
+    # paginação
+    try:
+        limit = min(int(request.args.get("limit", 25)), 100)
+    except ValueError:
+        limit = 25
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except ValueError:
+        page = 1
+    total = contar_docs("sorcery", query)
     total_pages = math.ceil(total / limit) if limit > 0 else 1
-
-    cursor = fab_collection.find(query).skip((page - 1) * limit).limit(limit)
-    data = [format_fab_card(doc) for doc in cursor]
-
+    data = buscar_docs("sorcery",query, page, limit)
     return jsonify({
         "page": page,
         "limit": limit,
@@ -301,10 +44,106 @@ def get_fab_cards():
         "data": data
     })
 
-@app.route("/yugi/cards")
-def get_yugi_cards():
+@app.route("/one-piece/cards")
+def get_onepiece_cards():
     query = {}
-    # filtros simples
+    # filtros
+    if request.args.get("name"):
+        query["name"] = {"$regex": request.args["name"], "$options": "i"}
+    if request.args.get("rarity"):
+        query["rarity"] = request.args["rarity"]
+    if request.args.get("color"):
+        query["color"] = request.args["color"]
+    if request.args.get("family"):
+        query["family"] = {"$regex": request.args["family"], "$options": "i"}
+    if request.args.get("set_code"):
+        query["set.set_code"] = request.args["set_code"] 
+    # paginação
+    try:
+        limit = min(int(request.args.get("limit", 25)), 100)
+    except ValueError:
+        limit = 25
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except ValueError:
+        page = 1
+    total = contar_docs("onepiece", query)
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+    data = buscar_docs("onepiece",query, page, limit)
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "totalPages": total_pages,
+        "data": data
+    })
+
+@app.route("/riftbound/cards")
+def get_riftbound_cards():
+    query = {}
+    # filtros
+    if request.args.get("name"):
+        query["name"] = {"$regex": request.args["name"], "$options": "i"}
+    if request.args.get("rarity"):
+        query["rarity"] = request.args["rarity"]
+    if request.args.get("type"):
+        query["cardType"] = {"$regex": request.args["type"], "$options": "i"}
+    if request.args.get("domain"):
+        query["domain"] = {"$regex": request.args["domain"], "$options": "i"}
+    if request.args.get("set"):
+        query["set.name"] = {"$regex": request.args["set"], "$options": "i"}   
+    # paginação
+    try:
+        limit = min(int(request.args.get("limit", 25)), 100)
+    except ValueError:
+        limit = 25
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except ValueError:
+        page = 1
+    total = contar_docs("riftbound", query)
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+    data = buscar_docs("riftbound",query, page, limit)
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "totalPages": total_pages,
+        "data": data
+    })
+
+@app.route("/fab/cards")
+def get_fab_cards():
+    query = {}
+    # filtros
+    if request.args.get("name"):
+        query["name"] = {"$regex": request.args["name"], "$options": "i"}
+    if request.args.get("set_id"):
+        query["printings.set_id"] = request.args["set_id"]
+    # paginação
+    try:
+        limit = min(int(request.args.get("limit", 25)), 100)
+    except ValueError:
+        limit = 25
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except ValueError:
+        page = 1
+    total = contar_docs("fab", query)
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+    data = buscar_docs("fab",query, page, limit)
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "totalPages": total_pages,
+        "data": data
+    })
+
+@app.route("/yugioh/cards")
+def get_yugi_cards():
+    # filtros parametros
+    query = {}
     if request.args.get("id"):
         query["id"] = int(request.args["id"])
     if request.args.get("konami_id"):
@@ -327,17 +166,9 @@ def get_yugi_cards():
         page = max(int(request.args.get("page", 1)), 1)
     except ValueError:
         page = 1
-    total = yugi_collection.count_documents(query)
+    total = contar_docs("yugioh", query)
     total_pages = math.ceil(total / limit) if limit > 0 else 1
-    # query no Mongo
-    cursor = (
-        yugi_collection.find(query)
-        .skip((page - 1) * limit)
-        .limit(limit)
-    )
-    data = []
-    for doc in cursor:
-        data.append(format_yugioh_card(doc))
+    data = buscar_docs("yugioh",query, page, limit)
     return jsonify({
         "page": page,
         "limit": limit,
@@ -346,11 +177,120 @@ def get_yugi_cards():
         "data": data
     })
 
+@app.route("/yugioh/cards/random")
+def get_yugi_random():
+    data = random_doc("yugioh")
+    return jsonify({
+        "page": 1,
+        "limit": 1,
+        "total": 1,
+        "totalPages": 1,
+        "data": data
+    })
+
+# api externa
+@app.route("/swu/cards")
+def get_swu_cards():
+    #parâmetros
+    swuset = request.args.get("set")  
+    swunumber = request.args.get("number")
+    if not swuset:
+        return jsonify({"error": "Informe o set"}), 400
+    swuset = swuset.lower()
+    if swunumber:
+        swunumber = swunumber.lower()
+        url = f"https://api.swu-db.com/cards/{swuset}/{swunumber}"
+    else:
+        url = f"https://api.swu-db.com/cards/{swuset}"
+    # paginação
+    try:
+        limit = min(int(request.args.get("limit", 25)), 100)
+    except ValueError:
+        limit = 25
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except ValueError:
+        page = 1
+    try:
+        r = requests.get(url, params={"format": "json", "pretty": "true"}, timeout=10)
+        r.raise_for_status()
+        resp_json = r.json()
+        if isinstance(resp_json, dict) and "data" in resp_json:
+            cards = resp_json["data"]
+        elif isinstance(resp_json, list):
+            cards = resp_json
+        else:
+            cards = [resp_json]
+    except requests.HTTPError as e:
+        return jsonify({"error": "Falha ao consultar SWU", "details": str(e)}), 502
+    except Exception as e:
+        return jsonify({"error": "Erro desconhecido", "details": str(e)}), 500
+
+    page_data = []
+    for card in cards:
+        images = {
+            "front": card.get("FrontArt"),
+            "back": card.get("BackArt"),
+        }
+        if images["front"]:
+            images["small"] = images["large"] = images["front"]
+        images = {k: v for k, v in images.items() if v is not None}
+
+        set_obj = {"set_code": card.get("Set")}
+        variants = {
+            "type": card.get("VariantType"),
+            "marketPrice": card.get("MarketPrice"),
+            "lowPrice": card.get("LowPrice"),
+        }
+        variants = {k: v for k, v in variants.items() if v is not None}
+
+        out = {
+            "number": card.get("Number"),
+            "name": card.get("Name"),
+            "subtitle": card.get("Subtitle"),
+            "type": card.get("Type"),
+            "aspects": card.get("Aspects"),
+            "traits": card.get("Traits"),
+            "arenas": card.get("Arenas"),
+            "cost": card.get("Cost"),
+            "power": card.get("Power"),
+            "hp": card.get("HP"),
+            "frontText": card.get("FrontText"),
+            "epicAction": card.get("EpicAction"),
+            "doubleSided": card.get("DoubleSided"),
+            "backText": card.get("BackText"),
+            "rarity": card.get("Rarity"),
+            "unique": card.get("Unique"),
+            "artist": card.get("Artist"),
+        }
+
+        if images:
+            out["images"] = images
+        if set_obj.get("set_code"):
+            out["set"] = set_obj
+        if variants:
+            out["variants"] = [variants]
+
+        if out.get("doubleSided") and out.get("set") and out["set"].get("set_code") and out.get("number"):
+            out["id"] = out["code"] = f"{out['set']['set_code']}-{out['number']}"
+
+        page_data.append({k: v for k, v in out.items() if v is not None})
+
+    total = len(cards)
+    total_pages = max((total + limit - 1) // limit, 1)
+
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "totalPages": total_pages,
+        "data": page_data
+    })
+
 @app.route("/mtg/cards")
 def get_mtg_cards():
     base_url = "https://api.magicthegathering.io/v1/cards"
 
-    # parâmetros da query (todos suportados pela API)
     params = {}
     allowed_filters = [
         "name", "set", "colors", "colorIdentity", "type", "supertypes",
@@ -362,7 +302,6 @@ def get_mtg_cards():
         if val:
             params[f] = val
 
-    # paginação
     try:
         limit = min(int(request.args.get("limit", 25)), 100)
     except ValueError:
@@ -375,7 +314,6 @@ def get_mtg_cards():
     params["pageSize"] = limit
     params["page"] = page
     params["contains"] = "imageUrl"
-
     try:
         r = requests.get(base_url, params=params, timeout=10)
         r.raise_for_status()
@@ -386,11 +324,43 @@ def get_mtg_cards():
         return jsonify({"error": "Falha ao consultar MTG", "details": str(e)}), 502
     except Exception as e:
         return jsonify({"error": "Erro desconhecido", "details": str(e)}), 500
-
-    # aplicar schema
-    data = [forced_layout_flat_fixed(mtg_schema, c) for c in cards]
+    data = []
+    for c in cards:
+        images = {"small": c.get("imageUrl")}
+        images = {k: v for k, v in images.items() if v}
+        set_obj = {"set_code": c.get("set"), "name": c.get("setName")}
+        set_obj = {k: v for k, v in set_obj.items() if v}
+        out = {
+            "id": c.get("id"),
+            "name": c.get("name"),
+            "manaCost": c.get("manaCost"),
+            "cmc": c.get("cmc"),
+            "colors": c.get("colors"),
+            "colorIdentity": c.get("colorIdentity"),
+            "type": c.get("type"),
+            "types": c.get("types"),
+            "subtypes": c.get("subtypes"),
+            "rarity": c.get("rarity"),
+            "effect": c.get("text"),
+            "artist": c.get("artist"),
+            "number": c.get("number"),
+            "power": c.get("power"),
+            "toughness": c.get("toughness"),
+            "layout": c.get("layout"),
+            "multiverseid": c.get("multiverseid"),
+            "variations": c.get("variations"),
+            "foreignNames": c.get("foreignNames"),
+            "printings": c.get("printings"),
+            "originalText": c.get("originalText"),
+            "originalType": c.get("originalType"),
+            "legalities": c.get("legalities"),
+        }
+        if images:
+            out["images"] = images
+        if set_obj:
+            out["set"] = set_obj
+        data.append({k: v for k, v in out.items() if v is not None})
     total_pages = math.ceil(total / limit) if limit > 0 else 1
-
     return jsonify({
         "page": page,
         "limit": limit,

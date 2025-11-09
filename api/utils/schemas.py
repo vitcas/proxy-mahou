@@ -1,0 +1,80 @@
+fab_schema = {
+    "unique_id": {"type": "string", "target": "id"},
+    "name": {"type": "string", "target": "name"},
+    "color": {"type": "string", "target": "color"},
+    "cost": {"type": "string|int", "target": "cost"},
+    "pitch": {"type": "string|int", "target": "pitch"},
+    "power": {"type": "string|int", "target": "power"},
+    "defense": {"type": "string|int", "target": "defense"},
+    "health": {"type": "string|int", "target": "hp"},
+    "intelligence": {"type": "string|int", "target": "intelligence"},
+    "type_text": {"type": "string", "target": "type"},
+    "types": {"type": "list[string]", "target": "types"},
+    "traits": {"type": "list[string]", "target": "traits"},
+    "card_keywords": {"type": "list[string]", "target": "keywords"},
+    "functional_text": {"type": "string", "target": "effect"},
+    "functional_text_plain": {"type": "string", "target": "effect_plain"},
+    "played_horizontally": {"type": "bool", "target": "playedHorizontally"},
+    # legalidades e banimentos
+    "blitz_legal": {"type": "bool", "target": "legalities.blitz"},
+    "cc_legal": {"type": "bool", "target": "legalities.classicConstructed"},
+    "commoner_legal": {"type": "bool", "target": "legalities.commoner"},
+    "upf_banned": {"type": "bool", "target": "legalities.upfBanned"},
+    # printing principal
+    "printings": {"type": "list[dict]", "target": "variants"}
+}
+
+swu_schema = {
+    "Set": {"type": "string", "target": "set.set_code"},
+    "Number": {"type": "string", "target": "number"},
+    "Name": {"type": "string", "target": "name"},
+    "Subtitle": {"type": "string", "target": "subtitle"},
+    "Type": {"type": "string", "target": "type"},
+    "Aspects": {"type": "list[string]", "target": "aspects"},
+    "Traits": {"type": "list[string]", "target": "traits"},
+    "Arenas": {"type": "list[string]", "target": "arenas"},
+    "Cost": {"type": "string|int", "target": "cost"},
+    "Power": {"type": "string|int", "target": "power"},
+    "HP": {"type": "string|int", "target": "hp"},
+    "FrontText": {"type": "string", "target": "frontText"},
+    "EpicAction": {"type": "string", "target": "epicAction"},
+    "DoubleSided": {"type": "bool", "target": "doubleSided"},
+    "BackArt": {"type": "string", "target": "images.back"},
+    "BackText": {"type": "string", "target": "backText"},
+    "Rarity": {"type": "string", "target": "rarity"},
+    "Unique": {"type": "bool", "target": "unique"},
+    "Artist": {"type": "string", "target": "artist"},
+    "VariantType": {"type": "string", "target": "variants.type"},
+    "MarketPrice": {"type": "float|string", "target": "variants.marketPrice"},
+    "LowPrice": {"type": "float|string", "target": "variants.lowPrice"},
+    "FrontArt": {"type": "string", "target": "images.front"}
+}
+
+mtg_schema = {
+    "id": {"type": "string", "target": "id"},
+    "name": {"type": "string", "target": "name"},
+    "manaCost": {"type": "string", "target": "manaCost"},
+    "cmc": {"type": "float", "target": "cmc"},
+    "colors": {"type": "list[string]", "target": "colors"},
+    "colorIdentity": {"type": "list[string]", "target": "colorIdentity"},
+    "type": {"type": "string", "target": "type"},
+    "types": {"type": "list[string]", "target": "types"},
+    "subtypes": {"type": "list[string]", "target": "subtypes"},
+    "rarity": {"type": "string", "target": "rarity"},
+    "set": {"type": "string", "target": "set.set_code"},
+    "setName": {"type": "string", "target": "set.name"},
+    "text": {"type": "string", "target": "effect"},
+    "artist": {"type": "string", "target": "artist"},
+    "number": {"type": "string", "target": "number"},
+    "power": {"type": "string|int", "target": "power"},
+    "toughness": {"type": "string|int", "target": "toughness"},
+    "layout": {"type": "string", "target": "layout"},
+    "multiverseid": {"type": "string|int", "target": "multiverseid"}, 
+    "imageUrl": {"type": "string", "target": "images.small"},
+    "variations": {"type": "list[string]", "target": "variations"},  # TODO: detalhar como armazenar variantes
+    "foreignNames": {"type": "list[dict]", "target": "foreignNames"},  # TODO: decidir se vira variants por idioma
+    "printings": {"type": "list[string]", "target": "printings"},  # TODO: decidir se vira array de sets
+    "originalText": {"type": "string", "target": "originalText"},
+    "originalType": {"type": "string", "target": "originalType"},
+    "legalities": {"type": "list[dict]", "target": "legalities"},
+}

@@ -1,0 +1,195 @@
+from pymongo import MongoClient
+from random import choice
+
+client = MongoClient("mongodb+srv://tcguser:A539ouca6IWf671S@cluster0.gb3pk.mongodb.net/?retryWrites=true&w=majority")
+db = client["tcg"]
+
+collections = {
+    "yugioh": db["yugioh_cards"],
+    "fab": db["fab_cards"],
+    "onepiece": db["onepiece_cards"],
+    "sorcery": db["sorcery_cards"],
+    "riftbound": db["riftbound_cards"],
+}
+
+def contar_docs(collec, query):
+    return collections[collec].count_documents(query)
+
+def buscar_docs(collec, query, page, limit):
+    cursor = (
+        collections[collec]
+        .find(query)
+        .skip((page - 1) * limit)
+        .limit(limit)
+    )
+    return [format_card(collec, c) for c in cursor]
+
+def random_doc(collec):
+    docs = list(collections[collec].aggregate([{"$sample": {"size": 1}}]))
+    return format_card(collec, docs[0]) if docs else None
+
+def format_card(collec, card):
+    if collec == "yugioh":
+        return format_yugi(card)
+    if collec == "fab":
+        return format_fab(card)
+    if collec == "sorcery":
+        return format_sorcery(card)
+    if collec == "riftbound":
+        return format_rift(card)
+    if collec == "onepiece":
+        return format_op(card)
+    return card  # fallback
+
+def format_yugi(card):
+    formatted = {
+        "id": str(card.get("id")),
+        "code": str(card.get("id")),
+        "name": card.get("name"),
+        "type": card.get("type"),
+        "attribute": card.get("attribute"),
+        "race": card.get("race"),
+        "level": card.get("level"),
+        "atk": card.get("atk"),
+        "def": card.get("def"),
+        "archetype": card.get("archetype"),
+        "effect": card.get("desc"),
+        "images": {"small": None, "large": None},
+        "variants": []
+    }
+    imgs = card.get("card_images", [])
+    if imgs:
+        formatted["images"] = {
+            "small": imgs[0].get("image_url_small"),
+            "large": imgs[0].get("image_url")
+        }
+    for s in card.get("card_sets", []):
+        formatted["variants"].append({
+            "set_code": s.get("set_code"),
+            "set_rarity": s.get("set_rarity"),
+            "set_price": s.get("set_price"),
+            "tcgplayerId": s.get("tcgplayerId"),
+            "juSTname": s.get("juSTname"),
+            "condition": s.get("condition"),
+            "language": s.get("language"),
+            "lowPrice": s.get("lowPrice"),
+            "midPrice": s.get("midPrice"),
+            "marketPrice": s.get("marketPrice"),
+            "highPrice": s.get("highPrice")
+        })
+    return formatted
+
+def format_fab(card):
+    formatted = {
+        "id": card.get("unique_id"),
+        "code": card.get("unique_id"),
+        "name": card.get("name"),
+        "color": card.get("color"),
+        "type": card.get("type_text"),
+        "types": card.get("types", []),
+        "traits": card.get("traits", []),
+        "keywords": card.get("card_keywords", []),
+        "cost": card.get("cost"),
+        "pitch": card.get("pitch"),
+        "power": card.get("power"),
+        "defense": card.get("defense"),
+        "hp": card.get("health"),
+        "intelligence": card.get("intelligence"),
+        "effect": card.get("functional_text"),
+        "effect_plain": card.get("functional_text_plain"),
+        "playedHorizontally": card.get("played_horizontally", False),
+        "legalities": {
+            "blitz": card.get("blitz_legal", False),
+            "classicConstructed": card.get("cc_legal", False),
+            "commoner": card.get("commoner_legal", False),
+            "upfBanned": card.get("upf_banned", False)
+        },
+        "variants": []
+    }
+    for p in card.get("printings", []):
+        formatted["variants"].append({
+            "set_code": p.get("set_id"),
+            "rarity": p.get("rarity"),
+            "foiling": p.get("foiling"),
+            "edition": p.get("edition"),
+            "artist": (p.get("artists") or [None])[0],
+            "image": p.get("image_url"),
+            "tcgplayer_id": p.get("tcgplayer_product_id"),
+            "tcgplayer_url": p.get("tcgplayer_url"),
+            "set_printing_id": p.get("set_printing_unique_id"),
+            "unique_id": p.get("unique_id"),
+        })
+    img = formatted["variants"][0]["image"] if formatted["variants"] else None
+    formatted["images"] = {"small": img, "large": img}
+    return formatted
+
+def format_sorcery(card):
+    formatted = {
+        "id": str(card.get("id")),
+        "code": str(card.get("id")),
+        "name": card.get("name"),
+        "element": card.get("elements"),
+        "type": card.get("guardian", {}).get("type"),
+        "subTypes": card.get("subTypes", []),
+        "rarity": card.get("guardian", {}).get("rarity"),
+        "cost": card.get("guardian", {}).get("cost"),
+        "effect": card.get("guardian", {}).get("rulesText"),
+        "images": {"small": None, "large": None},
+        "variants": []
+    }
+    variants = []
+    for s in card.get("sets", []):
+        set_name = s.get("name")
+        for v in s.get("variants", []):
+            variants.append({
+                "set": set_name,
+                "finish": v.get("finish"),
+                "product": v.get("product"),
+                "image": v.get("image"),
+            })
+    formatted["variants"] = variants
+    img = variants[0].get("image") if variants else None
+    formatted["images"] = {"small": img, "large": img}
+    return formatted
+
+def format_rift(card):
+    formatted = {
+        "id": card.get("id"),
+        "code": card.get("code") or card.get("number"),
+        "name": card.get("name"),
+        "type": card.get("cardType"),
+        "rarity": card.get("rarity"),
+        "domain": card.get("domain"),
+        "energyCost": card.get("energyCost"),
+        "powerCost": card.get("powerCost"),
+        "might": card.get("might"),
+        "effect": card.get("description"),
+        "flavorText": card.get("flavorText"),
+        "images": card.get("images", {}),
+        "set": card.get("set", {}),
+        "variants": card.get("variants", [])
+    }
+    return formatted
+
+def format_op(card):
+    formatted = {
+        "id": card.get("id"),
+        "code": card.get("code"),
+        "name": card.get("name"),
+        "type": card.get("type"),
+        "rarity": card.get("rarity"),
+        "color": card.get("color"),
+        "family": card.get("family"),
+        "attribute": card.get("attribute", {}).get("name"),
+        "attribute_img": card.get("attribute", {}).get("image"),
+        "cost": card.get("cost"),
+        "power": card.get("power"),
+        "counter": card.get("counter"),
+        "ability": card.get("ability"),
+        "trigger": card.get("trigger"),
+        "effect": card.get("ability"),
+        "images": card.get("images", {}),
+        "set": card.get("set", {}),
+        "variants": card.get("variants", [])
+    }
+    return formatted

@@ -1,0 +1,30 @@
+.vercel
+*.log
+*.pyc
+__pycache__
+
+# Environments 
+.env 
+.venv 
+env/ 
+venv/ 
+ENV/ 
+env.bak/ 
+venv.bak/ 
+
+# Dependências do Node
+node_modules/
+package-lock.json
+package.json
+pnpm-lock.yaml
+yarn.lock
+
+# Arquivos de build do Tailwind
+api/input.css
+api/output.css
+tailwind.config.js
+postcss.config.js
+
+# Arquivos temporários
+*.log
+.DS_Store
