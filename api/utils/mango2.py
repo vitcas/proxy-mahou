@@ -95,8 +95,8 @@ def format_fab(card):
         "defense": card.get("defense"),
         "hp": card.get("health"),
         "intelligence": card.get("intelligence"),
-        "effect": card.get("functional_text"),
-        "effect_plain": card.get("functional_text_plain"),
+        "functional_text": card.get("functional_text"),
+        "functional_text_plain": card.get("functional_text_plain"),
         "playedHorizontally": card.get("played_horizontally", False),
         "legalities": {
             "blitz": card.get("blitz_legal", False),
@@ -114,10 +114,7 @@ def format_fab(card):
             "edition": p.get("edition"),
             "artist": (p.get("artists") or [None])[0],
             "image": p.get("image_url"),
-            "tcgplayer_id": p.get("tcgplayer_product_id"),
-            "tcgplayer_url": p.get("tcgplayer_url"),
-            "set_printing_id": p.get("set_printing_unique_id"),
-            "unique_id": p.get("unique_id"),
+            "tcgplayerId": p.get("tcgplayer_product_id"),
         })
     img = formatted["variants"][0]["image"] if formatted["variants"] else None
     formatted["images"] = {"small": img, "large": img}
@@ -126,15 +123,11 @@ def format_fab(card):
 def format_sorcery(card):
     formatted = {
         "id": str(card.get("id")),
-        "code": str(card.get("id")),
-        "name": card.get("name"),
-        "element": card.get("elements"),
-        "type": card.get("guardian", {}).get("type"),
+        "name": card.get("name"),   
+        "guardian": card.get("guardian", {}),
+        "elements": card.get("elements"),
         "subTypes": card.get("subTypes", []),
-        "rarity": card.get("guardian", {}).get("rarity"),
-        "cost": card.get("guardian", {}).get("cost"),
-        "effect": card.get("guardian", {}).get("rulesText"),
-        "images": {"small": None, "large": None},
+        "images": card.get("images", {}),
         "variants": []
     }
     variants = []
@@ -145,25 +138,25 @@ def format_sorcery(card):
                 "set": set_name,
                 "finish": v.get("finish"),
                 "product": v.get("product"),
-                "image": v.get("image"),
+                "tcgplayerId": v.get("tcgplayerId"),
+                "marketPrice": v.get("marketPrice"),
             })
     formatted["variants"] = variants
-    img = variants[0].get("image") if variants else None
-    formatted["images"] = {"small": img, "large": img}
     return formatted
 
 def format_rift(card):
     formatted = {
         "id": card.get("id"),
-        "code": card.get("code") or card.get("number"),
-        "name": card.get("name"),
-        "type": card.get("cardType"),
+        "number": card.get("number"),
+        "code": card.get("code"),
+        "name": card.get("cleanName"),
+        "cardType": card.get("cardType"),
         "rarity": card.get("rarity"),
         "domain": card.get("domain"),
         "energyCost": card.get("energyCost"),
         "powerCost": card.get("powerCost"),
         "might": card.get("might"),
-        "effect": card.get("description"),
+        "description": card.get("description"),
         "flavorText": card.get("flavorText"),
         "images": card.get("images", {}),
         "set": card.get("set", {}),
@@ -180,14 +173,12 @@ def format_op(card):
         "rarity": card.get("rarity"),
         "color": card.get("color"),
         "family": card.get("family"),
-        "attribute": card.get("attribute", {}).get("name"),
-        "attribute_img": card.get("attribute", {}).get("image"),
+        "attribute": card.get("attribute", {}),
         "cost": card.get("cost"),
         "power": card.get("power"),
         "counter": card.get("counter"),
         "ability": card.get("ability"),
         "trigger": card.get("trigger"),
-        "effect": card.get("ability"),
         "images": card.get("images", {}),
         "set": card.get("set", {}),
         "variants": card.get("variants", [])

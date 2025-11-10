@@ -28,3 +28,4 @@ postcss.config.js
 # Arquivos temporários
 *.log
 .DS_Store
+bkp/

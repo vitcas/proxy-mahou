@@ -44,6 +44,17 @@ def get_sorcery_cards():
         "data": data
     })
 
+@app.route("/sorcery/cards/random")
+def get_sorcery_random():
+    data = random_doc("sorcery")
+    return jsonify({
+        "page": 1,
+        "limit": 1,
+        "total": 1,
+        "totalPages": 1,
+        "data": data
+    })
+
 @app.route("/one-piece/cards")
 def get_onepiece_cards():
     query = {}
@@ -75,6 +86,17 @@ def get_onepiece_cards():
         "limit": limit,
         "total": total,
         "totalPages": total_pages,
+        "data": data
+    })
+
+@app.route("/one-piece/cards/random")
+def get_onepiece_random():
+    data = random_doc("onepiece")
+    return jsonify({
+        "page": 1,
+        "limit": 1,
+        "total": 1,
+        "totalPages": 1,
         "data": data
     })
 
@@ -112,6 +134,17 @@ def get_riftbound_cards():
         "data": data
     })
 
+@app.route("/riftbound/cards/random")
+def get_riftbound_random():
+    data = random_doc("riftbound")
+    return jsonify({
+        "page": 1,
+        "limit": 1,
+        "total": 1,
+        "totalPages": 1,
+        "data": data
+    })
+
 @app.route("/fab/cards")
 def get_fab_cards():
     query = {}
@@ -137,6 +170,17 @@ def get_fab_cards():
         "limit": limit,
         "total": total,
         "totalPages": total_pages,
+        "data": data
+    })
+
+@app.route("/fab/cards/random")
+def get_fab_random():
+    data = random_doc("fab")
+    return jsonify({
+        "page": 1,
+        "limit": 1,
+        "total": 1,
+        "totalPages": 1,
         "data": data
     })
 
