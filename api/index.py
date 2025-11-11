@@ -20,6 +20,8 @@ def get_sorcery_cards():
         query["name"] = {"$regex": request.args["name"], "$options": "i"}
     if request.args.get("type"):
         query["type"] = {"$regex": request.args["type"], "$options": "i"}
+    if request.args.get("element"):
+        query["elements"] = {"$regex": request.args["element"], "$options": "i"}
     if request.args.get("rarity"):
         query["rarity"] = request.args["rarity"]
     if request.args.get("set"):
@@ -124,8 +126,8 @@ def get_riftbound_cards():
         query["energyCost"] = request.args["energyCost"]
     if request.args.get("powerCost"):
         query["powerCost"] = request.args["powerCost"]
-    if request.args.get("type"):
-        query["cardType"] = {"$regex": request.args["type"], "$options": "i"}
+    if request.args.get("cardType"):
+        query["cardType"] = {"$regex": request.args["cardType"], "$options": "i"}
     if request.args.get("domain"):
         query["domain"] = {"$regex": request.args["domain"], "$options": "i"}
     if request.args.get("set"):
@@ -212,6 +214,12 @@ def get_yugi_cards():
         query["md_rarity"] = request.args["md_rarity"]
     if request.args.get("name"):
         query["name"] = {"$regex": request.args["name"], "$options": "i"}
+    if request.args.get("attribute"):
+        query["attribute"] = {"$regex": request.args["attribute"], "$options": "i"}
+    if request.args.get("type"):
+        query["type"] = {"$regex": request.args["type"], "$options": "i"}
+    if request.args.get("frameType"):
+        query["frameType"] = {"$regex": request.args["frameType"], "$options": "i"}
     # filtros dentro de card_sets[]
     if request.args.get("set_code"):
         query["card_sets.set_code"] = request.args["set_code"]
