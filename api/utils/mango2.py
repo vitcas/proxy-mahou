@@ -44,9 +44,9 @@ def format_card(collec, card):
 def format_yugi(card):
     formatted = {
         "id": str(card.get("id")),
-        "code": str(card.get("id")),
         "name": card.get("name"),
-        "type": card.get("type"),
+        "type": card.get("type"), #Effect Monster
+        "frameType": card.get("frameType"), #effect, spell
         "attribute": card.get("attribute"),
         "race": card.get("race"),
         "level": card.get("level"),
@@ -148,7 +148,6 @@ def format_rift(card):
     formatted = {
         "id": card.get("id"),
         "number": card.get("number"),
-        "code": card.get("code"),
         "name": card.get("cleanName"),
         "cardType": card.get("cardType"),
         "rarity": card.get("rarity"),

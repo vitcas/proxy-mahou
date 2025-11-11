@@ -59,12 +59,22 @@ def get_sorcery_random():
 def get_onepiece_cards():
     query = {}
     # filtros
+    if request.args.get("id"):
+        query["id"] = {"$regex": request.args["id"], "$options": "i"}
+    if request.args.get("code"):
+        query["code"] = {"$regex": request.args["code"], "$options": "i"}
     if request.args.get("name"):
         query["name"] = {"$regex": request.args["name"], "$options": "i"}
     if request.args.get("rarity"):
         query["rarity"] = request.args["rarity"]
+    if request.args.get("type"):
+        query["type"] = request.args["type"]
     if request.args.get("color"):
         query["color"] = request.args["color"]
+    if request.args.get("cost"):
+        query["cost"] = request.args["cost"]
+    if request.args.get("power"):
+        query["power"] = request.args["power"]
     if request.args.get("family"):
         query["family"] = {"$regex": request.args["family"], "$options": "i"}
     if request.args.get("set_code"):
@@ -108,6 +118,12 @@ def get_riftbound_cards():
         query["name"] = {"$regex": request.args["name"], "$options": "i"}
     if request.args.get("rarity"):
         query["rarity"] = request.args["rarity"]
+    if request.args.get("might"):
+        query["might"] = request.args["might"]
+    if request.args.get("energyCost"):
+        query["energyCost"] = request.args["energyCost"]
+    if request.args.get("powerCost"):
+        query["powerCost"] = request.args["powerCost"]
     if request.args.get("type"):
         query["cardType"] = {"$regex": request.args["type"], "$options": "i"}
     if request.args.get("domain"):
@@ -334,7 +350,6 @@ def get_swu_cards():
 @app.route("/mtg/cards")
 def get_mtg_cards():
     base_url = "https://api.magicthegathering.io/v1/cards"
-
     params = {}
     allowed_filters = [
         "name", "set", "colors", "colorIdentity", "type", "supertypes",
@@ -345,7 +360,6 @@ def get_mtg_cards():
         val = request.args.get(f)
         if val:
             params[f] = val
-
     try:
         limit = min(int(request.args.get("limit", 25)), 100)
     except ValueError:
