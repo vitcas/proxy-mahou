@@ -7,9 +7,10 @@ db = client["tcg"]
 collections = {
     "yugioh": db["yugioh_cards"],
     "fab": db["fab_cards"],
-    "onepiece": db["onepiece_cards"],
+    "one-piece": db["onepiece_cards"],
     "sorcery": db["sorcery_cards"],
-    "riftbound": db["riftbound_cards"],
+    "star-wars": db["swu_cards"],
+    "riftbound": db["riftbound_cards"]
 }
 
 def contar_docs(collec, query):
@@ -18,14 +19,14 @@ def contar_docs(collec, query):
 def buscar_docs(collec, query, page, limit):
     cursor = (
         collections[collec]
-        .find(query)
+        .find(query, {"_id": 0})
         .skip((page - 1) * limit)
         .limit(limit)
     )
     return [format_card(collec, c) for c in cursor]
 
 def random_doc(collec):
-    docs = list(collections[collec].aggregate([{"$sample": {"size": 1}}]))
+    docs = list(collections[collec].aggregate([{"$sample": {"size": 1}},{"$project": {"_id": 0}}]))
     return format_card(collec, docs[0]) if docs else None
 
 def format_card(collec, card):
@@ -37,8 +38,10 @@ def format_card(collec, card):
         return format_sorcery(card)
     if collec == "riftbound":
         return format_rift(card)
-    if collec == "onepiece":
+    if collec == "one-piece":
         return format_op(card)
+    if collec == "star-wars":
+        return format_swu(card)
     return card  # fallback
 
 def format_yugi(card):
@@ -182,4 +185,58 @@ def format_op(card):
         "set": card.get("set", {}),
         "variants": card.get("variants", [])
     }
+    return formatted
+
+def format_swu(card):
+    formatted = {
+        "id": None,
+        "name": card.get("Name"),
+        "subtitle": card.get("Subtitle"),
+        "type": card.get("Type"),
+        "aspects": card.get("Aspects"),
+        "traits": card.get("Traits"),
+        "arenas": card.get("Arenas"),
+        "cost": card.get("Cost"),
+        "power": card.get("Power"),
+        "hp": card.get("HP"),
+        "frontText": card.get("FrontText"),
+        "epicAction": card.get("EpicAction"),
+        "doubleSided": card.get("DoubleSided"),
+        "backText": card.get("BackText"),
+        "rarity": card.get("Rarity"),
+        "unique": card.get("Unique"),
+        "artist": card.get("Artist"),
+        "images": {},
+        "set": card.get("Set"),
+        "variants": []
+    }
+
+    # imagens
+    front = card.get("FrontArt")
+    back = card.get("BackArt")
+    if front:
+        formatted["images"] = {
+            "front": front,
+            "back": back,
+            "small": front,
+            "large": front
+        }
+
+    # variantes
+    variant = {
+        "type": card.get("VariantType"),
+        "marketPrice": card.get("MarketPrice"),
+        "lowPrice": card.get("LowPrice"),
+        "foilPrice": card.get("FoilPrice"),
+    }
+    variant = {k: v for k, v in variant.items() if v is not None}
+    if variant:
+        formatted["variants"] = [variant]
+
+    # id/code
+    set_code = card.get("Set")
+    number = card.get("Number")
+    if set_code and number:
+        formatted["id"] = f"{set_code}-{number}"
+
     return formatted

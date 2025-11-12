@@ -90,9 +90,9 @@ def get_onepiece_cards():
         page = max(int(request.args.get("page", 1)), 1)
     except ValueError:
         page = 1
-    total = contar_docs("onepiece", query)
+    total = contar_docs("one-piece", query)
     total_pages = math.ceil(total / limit) if limit > 0 else 1
-    data = buscar_docs("onepiece",query, page, limit)
+    data = buscar_docs("one-piece",query, page, limit)
     return jsonify({
         "page": page,
         "limit": limit,
@@ -103,7 +103,7 @@ def get_onepiece_cards():
 
 @app.route("/one-piece/cards/random")
 def get_onepiece_random():
-    data = random_doc("onepiece")
+    data = random_doc("one-piece")
     return jsonify({
         "page": 1,
         "limit": 1,
@@ -169,8 +169,8 @@ def get_fab_cards():
     # filtros
     if request.args.get("name"):
         query["name"] = {"$regex": request.args["name"], "$options": "i"}
-    if request.args.get("set_id"):
-        query["printings.set_id"] = request.args["set_id"]
+    if request.args.get("set"):
+        query["printings.set_id"] = request.args["set"]
     # paginação
     try:
         limit = min(int(request.args.get("limit", 25)), 100)
@@ -256,9 +256,48 @@ def get_yugi_random():
         "data": data
     })
 
-# api externa
 @app.route("/swu/cards")
 def get_swu_cards():
+    query = {}
+    # filtros
+    if request.args.get("name"):
+        query["Name"] = {"$regex": request.args["name"], "$options": "i"}
+    if request.args.get("set"):
+        query["Set"] = {"$regex": request.args["set"], "$options": "i"}
+    # paginação
+    try:
+        limit = min(int(request.args.get("limit", 25)), 100)
+    except ValueError:
+        limit = 25
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except ValueError:
+        page = 1
+    total = contar_docs("star-wars", query)
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+    data = buscar_docs("star-wars",query, page, limit)
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "totalPages": total_pages,
+        "data": data
+    })
+
+@app.route("/swu/cards/random")
+def get_swu_random():
+    data = random_doc("star-wars")
+    return jsonify({
+        "page": 1,
+        "limit": 1,
+        "total": 1,
+        "totalPages": 1,
+        "data": data
+    })
+
+# api externa
+@app.route("/ext-swu/cards")
+def get_swu_cards_ext():
     #parâmetros
     swuset = request.args.get("set")  
     swunumber = request.args.get("number")
