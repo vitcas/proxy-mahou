@@ -80,7 +80,7 @@ def get_onepiece_cards():
     if request.args.get("family"):
         query["family"] = {"$regex": request.args["family"], "$options": "i"}
     if request.args.get("set"):
-        query["set.set_code"] = request.args["set_code"] 
+        query["set.set_code"] = request.args["set"] 
     # paginação
     try:
         limit = min(int(request.args.get("limit", 25)), 100)
