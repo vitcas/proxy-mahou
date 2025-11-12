@@ -70,7 +70,7 @@ def get_onepiece_cards():
     if request.args.get("rarity"):
         query["rarity"] = request.args["rarity"]
     if request.args.get("type"):
-        query["type"] = request.args["type"]
+        query["type"] = {"$regex": request.args["type"], "$options": "i"}
     if request.args.get("color"):
         query["color"] = request.args["color"]
     if request.args.get("cost"):
@@ -79,7 +79,7 @@ def get_onepiece_cards():
         query["power"] = request.args["power"]
     if request.args.get("family"):
         query["family"] = {"$regex": request.args["family"], "$options": "i"}
-    if request.args.get("set_code"):
+    if request.args.get("set"):
         query["set.set_code"] = request.args["set_code"] 
     # paginação
     try:
