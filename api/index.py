@@ -296,8 +296,8 @@ def get_swu_random():
     })
 
 # api externa
-@app.route("/ext-swu/cards")
-def get_swu_cards_ext():
+@app.route("/old-swu/cards")
+def get_swu_cards_old():
     #parâmetros
     swuset = request.args.get("set")  
     swunumber = request.args.get("number")
@@ -394,8 +394,8 @@ def get_swu_cards_ext():
         "data": page_data
     })
 
-@app.route("/mtg/cards")
-def get_mtg_cards():
+@app.route("/old-mtg/cards")
+def get_mtg_cards_old():
     base_url = "https://api.magicthegathering.io/v1/cards"
     params = {}
     allowed_filters = [
@@ -466,6 +466,133 @@ def get_mtg_cards():
             out["set"] = set_obj
         data.append({k: v for k, v in out.items() if v is not None})
     total_pages = math.ceil(total / limit) if limit > 0 else 1
+    return jsonify({
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "totalPages": total_pages,
+        "data": data
+    })
+
+@app.route("/mtg/cards")
+def get_mtg_cards():
+    # Parâmetros básicos
+    try:
+        limit = min(int(request.args.get("limit", 25)), 100)
+    except ValueError:
+        limit = 25
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except ValueError:
+        page = 1
+
+    # Scryfall pagina por ?page=
+    # e permite limitar resultados por q= com filtros textuais
+    q_parts = []
+
+    # Convertendo filtros antigos para Scryfall (quando possível)
+    mapping = {
+        "name": "name:",
+        "set": "set:",
+        "colors": "color:",
+        "colorIdentity": "id:",
+        "type": "type:",
+        "supertypes": "type:",
+        "types": "type:",
+        "subtypes": "type:",
+        "rarity": "rarity:",
+        "layout": "layout:",
+        "cmc": "cmc:",
+        "language": "lang:",
+        "id": "scryfallid:",
+    }
+
+    for old_key, prefix in mapping.items():
+        val = request.args.get(old_key)
+        if val:
+            q_parts.append(f'{prefix}"{val}"')
+
+    # Se nada for passado, buscamos tudo
+    q = " ".join(q_parts) if q_parts else "*"
+
+    url = "https://api.scryfall.com/cards/search"
+    params = {
+        "q": q,
+        "page": page,
+        "unique": "cards",
+        "order": "name"
+    }
+
+    try:
+        r = requests.get(url, params=params, timeout=10)
+        r.raise_for_status()
+        resp_json = r.json()
+        cards = resp_json.get("data", [])
+        total = resp_json.get("total_cards", len(cards))
+    except requests.HTTPError as e:
+        return jsonify({"error": "Falha ao consultar Scryfall", "details": str(e)}), 502
+    except Exception as e:
+        return jsonify({"error": "Erro desconhecido", "details": str(e)}), 500
+
+    data = []
+
+    for c in cards:
+        # imagens
+        images = c.get("image_uris") or (
+            (c.get("card_faces")[0].get("image_uris") if c.get("card_faces") else None)
+        )
+        if images:
+            images = {
+                "small": images.get("small"),
+                "normal": images.get("normal"),
+                "large": images.get("large"),
+            }
+            images = {k: v for k, v in images.items() if v}
+
+        # set info
+        set_obj = {
+            "set_code": c.get("set"),
+            "name": c.get("set_name"),
+        }
+        set_obj = {k: v for k, v in set_obj.items() if v}
+
+        # typeline mantido
+        typeline = c.get("type_line")
+
+        # multiverseid compatível
+        multiverse_id = (c.get("multiverse_ids") or [None])[0]
+
+        out = {
+            "id": c.get("id"),
+            "name": c.get("name"),
+            "manaCost": c.get("mana_cost"),
+            "cmc": c.get("cmc"),
+            "colors": c.get("colors"),
+            "colorIdentity": c.get("color_identity"),
+            "typeline": typeline,                     # <<< mantém o campo original
+            "rarity": c.get("rarity"),
+            "effect": c.get("oracle_text"),
+            "artist": c.get("artist"),
+            "number": c.get("collector_number"),
+            "power": c.get("power"),
+            "toughness": c.get("toughness"),
+            "layout": c.get("layout"),
+            "multiverseid": multiverse_id,
+            "printings": c.get("prints_search_uri"),
+            "legalities": c.get("legalities"),
+        }
+
+        if images:
+            out["images"] = images
+        if set_obj:
+            out["set"] = set_obj
+
+        # remover None
+        data.append({k: v for k, v in out.items() if v is not None})
+
+    # Scryfall não dá total exato por página, mas usamos total_cards
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+
     return jsonify({
         "page": page,
         "limit": limit,
