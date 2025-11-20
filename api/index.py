@@ -210,8 +210,8 @@ def get_yugi_cards():
         query["id"] = int(request.args["id"])
     if request.args.get("konami_id"):
         query["konami_id"] = int(request.args["konami_id"])
-    if request.args.get("md_rarity"):
-        query["md_rarity"] = request.args["md_rarity"]
+    if request.args.get("effect"):
+        query["desc"] = {"$regex": request.args["effect"], "$options": "i"}
     if request.args.get("name"):
         query["name"] = {"$regex": request.args["name"], "$options": "i"}
     if request.args.get("attribute"):
@@ -221,8 +221,8 @@ def get_yugi_cards():
     if request.args.get("frameType"):
         query["frameType"] = {"$regex": request.args["frameType"], "$options": "i"}
     # filtros dentro de card_sets[]
-    if request.args.get("set_code"):
-        query["card_sets.set_code"] = request.args["set_code"]
+    if request.args.get("set"):
+        query["card_sets.set_code"] = {"$regex": request.args["set"], "$options": "i"}
     if request.args.get("rarity"):
         query["card_sets.set_rarity"] = request.args["rarity"]
     # paginação
@@ -495,11 +495,6 @@ def get_mtg_cards():
         "name": "name:",
         "set": "set:",
         "colors": "color:",
-        "colorIdentity": "id:",
-        "type": "type:",
-        "supertypes": "type:",
-        "types": "type:",
-        "subtypes": "type:",
         "rarity": "rarity:",
         "layout": "layout:",
         "cmc": "cmc:",
