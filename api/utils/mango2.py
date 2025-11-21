@@ -13,6 +13,9 @@ collections = {
     "riftbound": db["riftbound_cards"]
 }
 
+def buscar_por_id(collec, card_id):
+    return collections[collec].find_one({"id": card_id}, {"_id": 0})
+
 def contar_docs(collec, query):
     return collections[collec].count_documents(query)
 
