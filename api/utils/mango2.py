@@ -14,7 +14,29 @@ collections = {
 }
 
 def buscar_por_id(collec, card_id):
-    return collections[collec].find_one({"id": card_id}, {"_id": 0})
+    query = {}
+    # yugioh → id é número
+    if collec == "yugioh":
+        try:
+            query["id"] = int(card_id)
+        except ValueError:
+            return None
+    # fab → usa unique_id
+    elif collec == "fab":
+        query["unique_id"] = card_id
+    # swu → id é Set-Number, mas você gera isso no formatador
+    elif collec == "star-wars":
+        # exemplo: SWH-002 → separa set e number
+        if "-" in card_id:
+            set_code, number = card_id.split("-", 1)
+            query["Set"] = set_code
+            query["Number"] = number
+        else:
+            return None
+    # one-piece, riftbound, sorcery → usam id string normal
+    else:
+        query["id"] = card_id
+    return collections[collec].find_one(query, {"_id": 0})
 
 def contar_docs(collec, query):
     return collections[collec].count_documents(query)

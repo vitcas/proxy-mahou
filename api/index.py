@@ -83,6 +83,30 @@ def get_cards(game):
     data = buscar_docs(collection, query, page, limit)
     return paginated_response(data, page, limit, total)
 
+@app.route("/<game>/cards/bulk", methods=["POST"])
+def get_cards_bulk(game):
+    if game not in GAME_CONFIG:
+        return jsonify({"error": "Jogo não encontrado"}), 404
+
+    # corpo deve conter: { "ids": ["x", "y", "z"] }
+    body = request.get_json(silent=True)
+    if not body or "ids" not in body or not isinstance(body["ids"], list):
+        return jsonify({"error": "Envie um JSON com uma lista 'ids'"}), 400
+
+    config = GAME_CONFIG[game]
+    collection = config["collection"]
+
+    result = []
+    for cid in body["ids"]:
+        card = buscar_por_id(collection, cid)
+        if card:
+            result.append(card)
+
+    return jsonify({
+        "count": len(result),
+        "data": result
+    })
+
 @app.route("/<game>/cards/<card_id>")
 def get_card_by_id(game, card_id):
     if game not in GAME_CONFIG:

@@ -92,6 +92,13 @@
     </pre>
   </div>
   <script>
+    function purypury(){
+      const el = document.getElementById('result');
+      if (el.dataset.highlighted) {
+        delete el.dataset.highlighted;
+      }
+      hljs.highlightAll();
+    }
     document.getElementById('test-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const path = document.getElementById('endpoint').value.trim();
@@ -105,7 +112,7 @@
       } catch (err) {
         resDiv.textContent = 'Erro: ' + err;
       }
-      hljs.highlightAll();
+      purypury();
     });
     // Faz todos os links preencherem o input e executar o teste
 document.querySelectorAll('a[href]').forEach(a => {
