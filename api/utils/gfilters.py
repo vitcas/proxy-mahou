@@ -95,3 +95,4 @@ def apply_swu_filters(args):
     if args.get("set"):
         q["Set"] = {"$regex": args["set"], "$options": "i"}
     return q
+
