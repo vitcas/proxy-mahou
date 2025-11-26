@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-import requests
-import math
+import requests, math
 from api.utils.mango2 import contar_docs, buscar_docs, random_doc, buscar_por_id
 from api.utils.gfilters import (
     apply_sorcery_filters,
@@ -14,6 +13,8 @@ from api.utils.gfilters import (
 
 app = Flask(__name__)
 CORS(app)
+
+API_KEY = "94fbfb20cb57a0c1c5e460b84503ae129fe0a8808d6c347a5bb7efa32c7eae56"
 
 GAME_CONFIG = {
     "sorcery": {
@@ -61,14 +62,28 @@ def random_response(collection: str):
         "data": data
     })
 
+def get_cards_ext(game):
+    url = f"https://apitcg.com/api/{game}/cards"
+    params = {k: v for k, v in request.args.items() if k != "game"}
+    try:
+        r = requests.get(url, headers={"x-api-key": API_KEY}, params=params, timeout=10)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    try:
+        r.raise_for_status()
+        return jsonify(r.json())
+    except Exception:
+        return jsonify({"error": r.text[:500]}), 502
+
 @app.route("/")
 def root():
     return render_template("home.html")
 
-@app.route("/<game>/cards")
+@app.route("/api/<game>/cards")
 def get_cards(game):
     if game not in GAME_CONFIG:
-        return jsonify({"error": "Jogo não encontrado"}), 404
+        aux = get_cards_ext(game)
+        return aux
     config = GAME_CONFIG[game]
     collection = config["collection"]
     filter_fn = config["filter_fn"]
@@ -83,7 +98,7 @@ def get_cards(game):
     data = buscar_docs(collection, query, page, limit)
     return paginated_response(data, page, limit, total)
 
-@app.route("/<game>/cards/bulk", methods=["POST"])
+@app.route("/api/<game>/cards/bulk", methods=["POST"])
 def get_cards_bulk(game):
     if game not in GAME_CONFIG:
         return jsonify({"error": "Jogo não encontrado"}), 404
@@ -107,7 +122,7 @@ def get_cards_bulk(game):
         "data": result
     })
 
-@app.route("/<game>/cards/<card_id>")
+@app.route("/api/<game>/cards/<card_id>")
 def get_card_by_id(game, card_id):
     if game not in GAME_CONFIG:
         return jsonify({"error": "Jogo não encontrado"}), 404
@@ -118,7 +133,7 @@ def get_card_by_id(game, card_id):
         return jsonify({"error": "Card não encontrado"}), 404
     return jsonify(card)
 
-@app.route("/<game>/cards/random")
+@app.route("/api/<game>/cards/random")
 def get_random_card(game):
     if game not in GAME_CONFIG:
         return jsonify({"error": "Jogo não encontrado"}), 404
@@ -126,7 +141,7 @@ def get_random_card(game):
     collection = config["collection"]
     return random_response(collection)
 
-@app.route("/mtg/cards")
+@app.route("/api/mtg/cards")
 def get_mtg_cards():
     # Parâmetros básicos
     try:
