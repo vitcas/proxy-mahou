@@ -64,16 +64,6 @@ def paginated_response(data, page, limit, total):
         "data": data
     })
 
-def random_response(collection: str):
-    data = random_doc(collection)
-    return jsonify({
-        "page": 1,
-        "limit": 1,
-        "total": 1,
-        "totalPages": 1,
-        "data": data
-    })
-
 def get_mtg_cards():
     try:
         limit = request.args.get("limit", 25)
@@ -158,14 +148,20 @@ def get_cards_bulk(game):
 
 @app.route("/api/<game>/cards/<card_id>")
 def get_card_by_id(game, card_id):
-    if game not in GAME_CONFIG:
+    if not has_game(game):
         return jsonify({"error": "Jogo não encontrado"}), 404
+    if not has_game_mahou(game):
+        return get_apitcg_cards(game)
+    if game == "magic":
+        return get_mtg_cards()
     config = GAME_CONFIG[game]
     collection = config["collection"]
     card = buscar_por_id(collection, card_id)
     if not card:
         return jsonify({"error": "Card não encontrado"}), 404
-    return jsonify(card)
+    return jsonify({
+        "data": card
+    })
 
 @app.route("/api/<game>/cards/random")
 def get_random_card(game):
@@ -173,7 +169,10 @@ def get_random_card(game):
         return jsonify({"error": "Jogo não habilitado"}), 404
     config = GAME_CONFIG[game]
     collection = config["collection"]
-    return random_response(collection)
+    data = random_doc(collection)
+    return jsonify({
+        "data": data
+    })
 
 @app.after_request
 def add_cache_headers(resp):

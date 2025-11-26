@@ -13,11 +13,14 @@
   <div class="left">
     <h1>endpoint test</h1>
     <p class="tagline">Página de referência para os endpoints disponíveis no servidor Flask + Mongo</p>
-    <!-- sorcery -->
     <div class="endpoint">
       <h3>🧙‍♂️ Sorcery TCG</h3>
-      <span><code>GET /sorcery/cards</code> — Lista cartas de Sorcery</span><br>
-      <span><code>GET /sorcery/cards/random</code> — Retorna uma carta aleatória</span>
+      <span><code>GET /game/cards</code> — Lista cartas de Sorcery</span><br>
+      <span><code>GET /game/cards/random</code> — Retorna uma carta aleatória</span>
+    </div>
+      <!-- sorcery -->
+    <div class="endpoint">
+      <h3>🧙‍♂️ Sorcery TCG</h3>
       <ul>
         <li><a href="/sorcery/cards?limit=5" target="_blank">/sorcery/cards?limit=5</a></li>
         <li><a href="/sorcery/cards/random" target="_blank">/sorcery/cards/random</a></li>
@@ -26,8 +29,6 @@
     <!-- one piece -->
     <div class="endpoint">
         <h3>🏴‍☠️ One Piece TCG</h3>
-        <span><code>GET /one-piece/cards</code> — Lista cartas do One Piece</span><br>
-        <span><code>GET /one-piece/cards/random</code> — Retorna uma carta aleatória</span>
         <ul>
             <li><a href="/one-piece/cards?limit=5" target="_blank">/one-piece/cards?limit=5</a></li>
             <li><a href="/one-piece/cards?name=sanji" target="_blank">/one-piece/cards?name=sanji</a></li>
@@ -38,8 +39,6 @@
     <!-- riftbound -->
     <div class="endpoint">
         <h3>🔥 Riftbound</h3>
-        <span><code>GET /riftbound/cards</code> — Lista cartas do Riftbound</span><br>
-        <span><code>GET /riftbound/cards/random</code> — Retorna uma carta aleatória</span>    
         <ul>
             <li><a href="/riftbound/cards?limit=5" target="_blank">/riftbound/cards?limit=5</a></li>
             <li><a href="/riftbound/cards?name=tibbers" target="_blank">/riftbound/cards?name=tibbers</a></li>
@@ -49,8 +48,6 @@
     <!-- fab -->
     <div class="endpoint">
         <h3>⚔️ Flesh and Blood</h3>
-        <span><code>GET /fab/cards</code> — Lista cartas de FAB</span><br>
-        <span><code>GET /fab/cards/random</code> — Retorna uma carta aleatória</span>
         <p><strong>Filtros disponíveis:</strong></p>
         <ul>
             <li><code>name</code> — busca parcial (regex)</li>
@@ -66,8 +63,6 @@
     <!-- yugioh -->
     <div class="endpoint">
         <h3>🃏 Yu-Gi-Oh!</h3>
-        <span><code>GET /yugioh/cards</code> — Lista cartas de Yu-Gi-Oh!</span><br>
-        <span><code>GET /yugioh/cards/random</code> — Retorna uma carta aleatória</span>
         <p><strong>Filtros disponíveis:</strong></p>
         <ul>
             <li><code>id</code>, <code>konami_id</code>, <code>md_rarity</code>, <code>name</code></li>
