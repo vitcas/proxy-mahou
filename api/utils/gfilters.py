@@ -2,16 +2,32 @@
 
 def apply_sorcery_filters(args):
     q = {}
+    # Busca por nome da carta
     if args.get("name"):
         q["name"] = {"$regex": args["name"], "$options": "i"}
+    # Tipo da carta → vem de guardian.type
     if args.get("type"):
-        q["type"] = {"$regex": args["type"], "$options": "i"}
+        q["guardian.type"] = {"$regex": args["type"], "$options": "i"}
+    if args.get("rarity"):
+        q["guardian.rarity"] = {"$regex": args["rarity"], "$options": "i"}
+    # Elemento (Air, Fire, Water, etc) → raiz
     if args.get("element"):
         q["elements"] = {"$regex": args["element"], "$options": "i"}
-    if args.get("rarity"):
-        q["rarity"] = args["rarity"]
+    # Subtipo (Mortal, etc)
+    if args.get("subtype"):
+        q["subTypes"] = {"$regex": args["subtype"], "$options": "i"}
+    # Buscar por SET ex: Alpha, Beta
     if args.get("set"):
-        q["set.name"] = {"$regex": args["set"], "$options": "i"}
+        q["sets.name"] = {"$regex": args["set"], "$options": "i"}
+    # Variant → finish (Standard, Foil)
+    if args.get("finish"):
+        q["sets.variants.finish"] = args["finish"]
+    # Variant → product (Booster / Preconstructed_Deck)
+    if args.get("product"):
+        q["sets.variants.product"] = {"$regex": args["product"], "$options": "i"}
+    # Variant → artist
+    if args.get("artist"):
+        q["sets.variants.artist"] = {"$regex": args["artist"], "$options": "i"}
     return q
 
 def apply_onepiece_filters(args):
