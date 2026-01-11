@@ -49,6 +49,14 @@ GAME_CONFIG = {
         "collection": "star-wars",
         "filter_fn": apply_swu_filters
     },
+    "gundam": {
+        "collection": "gundam",
+        "filter_fn": apply_gundam_filters
+    },
+    "union-arena": {
+        "collection": "union-arena",
+        "filter_fn": apply_unionarena_filters
+    }
 }
 
 def has_game(game: str) -> bool:
