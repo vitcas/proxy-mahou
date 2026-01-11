@@ -54,6 +54,30 @@ def apply_onepiece_filters(args):
         q["set.set_code"] = args["set"]
     return q
 
+def apply_gundam_filters(args):
+    q = {}
+    if args.get("id"):
+        q["id"] = {"$regex": args["id"], "$options": "i"}
+    if args.get("code"):
+        q["code"] = {"$regex": args["code"], "$options": "i"}
+    if args.get("name"):
+        q["name"] = {"$regex": args["name"], "$options": "i"}
+    if args.get("rarity"):
+        q["rarity"] = args["rarity"]
+    return q
+
+def apply_unionarena_filters(args):
+    q = {}
+    if args.get("id"):
+        q["id"] = {"$regex": args["id"], "$options": "i"}
+    if args.get("code"):
+        q["code"] = {"$regex": args["code"], "$options": "i"}
+    if args.get("name"):
+        q["name"] = {"$regex": args["name"], "$options": "i"}
+    if args.get("rarity"):
+        q["rarity"] = args["rarity"]
+    return q
+
 def apply_riftbound_filters(args):
     q = {}
     if args.get("name"):

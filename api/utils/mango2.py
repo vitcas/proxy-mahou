@@ -10,7 +10,9 @@ collections = {
     "one-piece": db["onepiece_cards"],
     "sorcery": db["sorcery_cards"],
     "star-wars": db["swu_cards"],
-    "riftbound": db["riftbound_cards"]
+    "riftbound": db["riftbound_cards"],
+    "gundam": db["gundam_cards"],
+    "union-arena": db["unionarena_cards"]
 }
 
 def buscar_por_id(collec, card_id):
@@ -67,6 +69,10 @@ def format_card(collec, card):
         return format_op(card)
     if collec == "star-wars":
         return format_swu(card)
+    if collec == "gundam":
+        return format_gundam(card)
+    if collec == "union-arena":
+        return format_uniona(card)
     return card  # fallback
 
 def format_yugi(card):
@@ -191,6 +197,29 @@ def format_rift(card):
     }
     return formatted
 
+def format_gundam(card):
+    formatted = {
+        "id": card.get("id"),
+        "code": card.get("code"),
+        "rarity": card.get("rarity"),
+        "name": card.get("name"),
+        "images": card.get("images", {}),
+        "level": card.get("level"),
+        "cost": card.get("cost"),
+        "color": card.get("color"),
+        "cardType": card.get("cardType"),
+        "effect": card.get("effect", {}),
+        "zone": card.get("zone"),
+        "trait": card.get("trait"),
+        "link": card.get("link"),
+        "ap": card.get("ap"),
+        "hp": card.get("hp"),
+        "sourceTitle": card.get("sourceTitle"),
+        "getIt": card.get("getIt"),
+        "set": card.get("set", {})
+    }
+    return formatted
+
 def format_op(card):
     formatted = {
         "id": card.get("id"),
@@ -209,6 +238,24 @@ def format_op(card):
         "images": card.get("images", {}),
         "set": card.get("set", {}),
         "variants": card.get("variants", [])
+    }
+    return formatted
+
+def format_uniona(card):
+    formatted = {
+        "id": card.get("id"),
+        "code": card.get("code"),
+        "url": card.get("url"),
+        "name": card.get("name"),
+        "rarity": card.get("rarity"),
+        "ap": card.get("ap"),
+        "type": card.get("type"),
+        "bp": card.get("bp"),
+        "affinity": card.get("affinity"),
+        "effect": card.get("effect"),
+        "trigger": card.get("trigger"),
+        "images": card.get("images", {}),
+        "set": card.get("set", {})
     }
     return formatted
 

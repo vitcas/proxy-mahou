@@ -10,6 +10,8 @@ from api.utils.gfilters import (
     apply_fab_filters,
     apply_yugioh_filters,
     apply_swu_filters,
+    apply_unionarena_filters,
+    apply_gundam_filters
 )
 
 app = Flask(__name__)
@@ -18,8 +20,8 @@ CORS(app)
 API_KEY = "94fbfb20cb57a0c1c5e460b84503ae129fe0a8808d6c347a5bb7efa32c7eae56"
 
 GAME_SRC = {
-    "apitcg":["digimon","pokemon","gundam","union-arena","dragon-ball-fusion"],
-    "mahou":["sorcery","one-piece","riftbound","star-wars","fab","yugioh","magic"]
+    "apitcg":["digimon","pokemon","dragon-ball-fusion"],
+    "mahou":["sorcery","one-piece","riftbound","star-wars","fab","yugioh","magic","gundam","union-arena"]
 }
 
 GAME_CONFIG = {
